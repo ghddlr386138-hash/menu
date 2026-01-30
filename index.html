@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>컴포즈커피 칠원 하모니점 메뉴판</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            background: linear-gradient(135deg, #FDB71A 0%, #FFA500 100%);
+            font-family: 'Noto Sans KR', sans-serif;
+        }
+        .header {
+            background: black;
+            color: #FDB71A;
+            user-select: none;
+            cursor: pointer;
+        }
+        .menu-section {
+            background: white;
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+        .category-btn {
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        .category-btn:hover {
+            transform: scale(1.05);
+        }
+        .category-btn.active {
+            background: #1e293b;
+            color: white;
+        }
+        .admin-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.9);
+            z-index: 1000;
+        }
+        .admin-content {
+            background: white;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 30px;
+            border-radius: 15px;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        .menu-image-container {
+            position: relative;
+            overflow: hidden;
+        }
+        .menu-image-container img {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+        .hidden-section {
+            display: none;
+        }
+        .image-preview {
+            max-width: 100px;
+            max-height: 100px;
+            object-fit: cover;
+            border-radius: 8px;
+        }
+    </style>
+</head>
+<body class="min-h-screen">
+    <div class="container mx-auto px-4 py-6">
+        <!-- Header -->
+        <div id="header" class="header text-center py-6 rounded-2xl mb-6 shadow-2xl">
+            <h1 class="text-4xl font-bold mb-2">☕ COMPOSE COFFEE</h1>
+            <h2 class="text-2xl">컴포즈커피 칠원 하모니점</h2>
+        </div>
+
+        <!-- Category Filters -->
+        <div class="flex flex-wrap gap-3 mb-6 justify-center">
+            <button class="category-btn active px-6 py-3 rounded-full bg-white font-bold shadow-lg" data-category="all">전체 메뉴</button>
+            <button class="category-btn px-6 py-3 rounded-full bg-white font-bold shadow-lg" data-category="coffee">커피</button>
+            <button class="category-btn px-6 py-3 rounded-full bg-white font-bold shadow-lg" data-category="coldbrew">콜드브루</button>
+            <button class="category-btn px-6 py-3 rounded-full bg-white font-bold shadow-lg" data-category="latte">라떼</button>
+            <button class="category-btn px-6 py-3 rounded-full bg-white font-bold shadow-lg" data-category="tea">티 음료</button>
+            <button class="category-btn px-6 py-3 rounded-full bg-white font-bold shadow-lg" data-category="ade">에이드</button>
+            <button class="category-btn px-6 py-3 rounded-full bg-white font-bold shadow-lg" data-category="juice">주스</button>
+            <button class="category-btn px-6 py-3 rounded-full bg-white font-bold shadow-lg" data-category="smoothie">스무디</button>
+            <button class="category-btn px-6 py-3 rounded-full bg-white font-bold shadow-lg" data-category="frappe">프라페</button>
+            <button class="category-btn px-6 py-3 rounded-full bg-white font-bold shadow-lg" data-category="shake">밀크쉐이크</button>
+        </div>
+
+        <!-- Search Bar -->
+        <div class="mb-6">
+            <input 
+                type="text" 
+                id="searchInput" 
+                placeholder="🔍 메뉴 검색... (예: 아메리카노, 라떼)" 
+                class="w-full px-6 py-4 text-lg rounded-xl shadow-lg border-2 border-gray-200 focus:border-yellow-500 focus:outline-none"
+            />
+            <p class="text-center text-white mt-2 text-sm">* 검색어를 입력하면 해당 메뉴만 표시됩니다</p>
+        </div>
+
+        <!-- Menu Image Display -->
+        <div class="menu-section mb-8">
+            <div id="menuDisplay" class="menu-image-container">
+                <img src="menu-image.jpeg" alt="컴포즈커피 메뉴판" id="menuImage">
+            </div>
+            <div id="searchResults" class="p-6 hidden">
+                <h3 class="text-2xl font-bold mb-4">검색 결과</h3>
+                <div id="searchResultsContent"></div>
+            </div>
+        </div>
+
+
+
+        <!-- Additional Menu Images Section -->
+        <div id="additionalMenusSection" class="mt-8">
+            <h3 class="text-white text-2xl font-bold text-center mb-4">추가 메뉴판</h3>
+            <div id="additionalMenusGrid" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <!-- Additional menu images will appear here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Admin Modal -->
+    <div id="adminModal" class="admin-modal">
+        <div class="admin-content">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-3xl font-bold">🔐 관리자 모드</h2>
+                <button id="closeAdmin" class="text-3xl hover:text-red-500">&times;</button>
+            </div>
+
+            <!-- Add New Menu Image -->
+            <div class="mb-8 p-6 bg-yellow-50 rounded-xl">
+                <h3 class="text-xl font-bold mb-4">➕ 새 메뉴판 이미지 추가</h3>
+                <div class="space-y-3">
+                    <input type="text" id="newMenuTitle" placeholder="메뉴판 제목 (예: 신메뉴, 시즌 메뉴)" class="w-full px-4 py-2 border rounded-lg" />
+                    <input type="file" id="newMenuImageFile" accept="image/*" class="w-full px-4 py-2 border rounded-lg" />
+                    <button id="addMenuImageBtn" class="w-full bg-green-500 text-white px-6 py-3 rounded-lg font-bold hover:bg-green-600">메뉴판 추가하기</button>
+                </div>
+            </div>
+
+            <!-- QR Code Section -->
+            <div class="mb-8 p-6 bg-blue-50 rounded-xl">
+                <h3 class="text-xl font-bold mb-4">📱 메뉴판 QR 코드</h3>
+                <div id="qrcode" class="flex justify-center mb-4"></div>
+                <p class="text-gray-600 text-center">QR 코드를 스캔하여 메뉴를 확인하세요</p>
+                <p class="text-sm text-gray-500 text-center mt-2">이 QR 코드를 출력하여 매장에 비치하세요</p>
+            </div>
+
+            <!-- Manage Additional Menus -->
+            <div>
+                <h3 class="text-xl font-bold mb-4">📝 추가 메뉴판 관리</h3>
+                <div id="adminMenuImageList" class="space-y-3 max-h-96 overflow-y-auto">
+                    <!-- Menu images list will be inserted here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script>
+        // Menu search keywords mapping
+        const menuKeywords = {
+            '아메리카노': ['coffee'],
+            '에스프레소': ['coffee'],
+            '카페라떼': ['coffee'],
+            '카푸치노': ['coffee'],
+            '바닐라': ['coffee'],
+            '헤이즐넛': ['coffee'],
+            '카라멜': ['coffee'],
+            '모카': ['coffee'],
+            '아샷추': ['coffee'],
+            '돌체': ['coffee'],
+            '흑당': ['coffee', 'latte'],
+            '달고나': ['coffee'],
+            '아인슈페너': ['coffee', 'coldbrew'],
+            '빅포즈': ['coffee'],
+            '콜드브루': ['coldbrew'],
+            '디카페인': ['coffee', 'coldbrew'],
+            '곡물라떼': ['latte'],
+            '고구마라떼': ['latte'],
+            '초코': ['latte', 'frappe'],
+            '그린티': ['latte', 'frappe'],
+            '쿠키': ['latte', 'frappe', 'shake'],
+            '밀크': ['latte', 'shake'],
+            '요거트': ['latte', 'smoothie'],
+            '밀크티': ['latte', 'tea'],
+            '허니티': ['tea'],
+            '홍차': ['tea'],
+            '꽈일핑': ['tea'],
+            '페퍼민트': ['tea'],
+            '캐모마일': ['tea'],
+            '자몽': ['tea'],
+            '아이스티': ['tea'],
+            '이얌쥬': ['tea'],
+            '스무디': ['smoothie'],
+            '에이드': ['ade'],
+            '주스': ['juice'],
+            '복숭아': ['juice'],
+            '키위': ['juice'],
+            '오렌지': ['juice'],
+            '샤인머스캣': ['juice'],
+            '딸기': ['juice', 'shake'],
+            '프라페': ['frappe'],
+            '자바칩': ['frappe'],
+            '밀크쉐이크': ['shake'],
+            '블루베리': ['shake'],
+            '캐디슈가': ['shake'],
+            '커피': ['shake'],
+            '모히또': ['shake']
+        };
+
+        // Load additional menus from localStorage
+        let additionalMenus = JSON.parse(localStorage.getItem('additionalMenus') || '[]');
+
+        // Category filter
+        document.querySelectorAll('.category-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                document.querySelectorAll('.category-btn').forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+                
+                const category = this.dataset.category;
+                
+                if (category === 'all') {
+                    document.getElementById('menuImage').style.display = 'block';
+                    document.getElementById('searchResults').classList.add('hidden');
+                    document.getElementById('searchInput').value = '';
+                } else {
+                    showCategoryHint(category);
+                }
+            });
+        });
+
+        function showCategoryHint(category) {
+            const categoryNames = {
+                'coffee': '커피',
+                'coldbrew': '콜드브루',
+                'latte': '라떼',
+                'tea': '티 음료',
+                'ade': '에이드',
+                'juice': '주스',
+                'smoothie': '스무디',
+                'frappe': '프라페',
+                'shake': '밀크쉐이크'
+            };
+
+            document.getElementById('menuImage').style.display = 'none';
+            document.getElementById('searchResults').classList.remove('hidden');
+            document.getElementById('searchResultsContent').innerHTML = `
+                <div class="text-center py-12">
+                    <div class="text-6xl mb-4">☕</div>
+                    <p class="text-xl mb-4"><strong>${categoryNames[category]}</strong> 메뉴를 보시려면</p>
+                    <p class="text-lg text-gray-600">위 이미지에서 해당 섹션을 확인하세요</p>
+                    <button onclick="showAllMenu()" class="mt-6 bg-yellow-500 text-white px-8 py-3 rounded-lg font-bold hover:bg-yellow-600">
+                        전체 메뉴 보기
+                    </button>
+                </div>
+            `;
+        }
+
+        window.showAllMenu = function() {
+            document.getElementById('menuImage').style.display = 'block';
+            document.getElementById('searchResults').classList.add('hidden');
+            document.querySelectorAll('.category-btn').forEach(b => b.classList.remove('active'));
+            document.querySelector('.category-btn[data-category="all"]').classList.add('active');
+        };
+
+        // Search functionality
+        document.getElementById('searchInput').addEventListener('input', function(e) {
+            const searchTerm = e.target.value.toLowerCase().trim();
+            
+            if (searchTerm === '') {
+                document.getElementById('menuImage').style.display = 'block';
+                document.getElementById('searchResults').classList.add('hidden');
+                return;
+            }
+
+            // Find matching categories
+            let matchedCategories = new Set();
+            let foundMenus = [];
+
+            for (const [keyword, categories] of Object.entries(menuKeywords)) {
+                if (keyword.toLowerCase().includes(searchTerm)) {
+                    categories.forEach(cat => matchedCategories.add(cat));
+                    foundMenus.push(keyword);
+                }
+            }
+
+            if (foundMenus.length > 0) {
+                document.getElementById('menuImage').style.display = 'none';
+                document.getElementById('searchResults').classList.remove('hidden');
+                
+                const categoryNames = {
+                    'coffee': '☕ 커피',
+                    'coldbrew': '🧊 콜드브루',
+                    'latte': '🥤 라떼',
+                    'tea': '🍵 티',
+                    'ade': '🍹 에이드',
+                    'juice': '🧃 주스',
+                    'smoothie': '🥤 스무디',
+                    'frappe': '🥤 프라페',
+                    'shake': '🥤 밀크쉐이크'
+                };
+
+                let resultHTML = `
+                    <div class="mb-4">
+                        <p class="text-lg mb-2"><strong>"${searchTerm}"</strong> 검색 결과:</p>
+                        <div class="space-y-2">
+                `;
+
+                matchedCategories.forEach(cat => {
+                    resultHTML += `<div class="bg-yellow-50 p-3 rounded-lg">${categoryNames[cat]} 섹션을 확인하세요</div>`;
+                });
+
+                resultHTML += `
+                        </div>
+                        <p class="text-sm text-gray-600 mt-4">위 메뉴판 이미지에서 해당 섹션을 찾아보세요</p>
+                        <button onclick="showAllMenu()" class="mt-4 bg-yellow-500 text-white px-6 py-2 rounded-lg font-bold hover:bg-yellow-600">
+                            전체 메뉴 보기
+                        </button>
+                    </div>
+                `;
+
+                document.getElementById('searchResultsContent').innerHTML = resultHTML;
+            } else {
+                document.getElementById('menuImage').style.display = 'none';
+                document.getElementById('searchResults').classList.remove('hidden');
+                document.getElementById('searchResultsContent').innerHTML = `
+                    <div class="text-center py-12">
+                        <div class="text-6xl mb-4">😢</div>
+                        <p class="text-xl mb-4">검색 결과가 없습니다</p>
+                        <p class="text-gray-600">다른 검색어를 입력해보세요</p>
+                        <button onclick="showAllMenu()" class="mt-6 bg-yellow-500 text-white px-8 py-3 rounded-lg font-bold hover:bg-yellow-600">
+                            전체 메뉴 보기
+                        </button>
+                    </div>
+                `;
+            }
+        });
+
+        // Admin access (removed double-click, now only accessible via direct URL or button if needed)
+        // Check URL for admin parameter
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('admin') === 'true') {
+            const password = prompt('🔐 관리자 비밀번호를 입력하세요:');
+            if (password === 'compose2024') {
+                document.getElementById('adminModal').style.display = 'block';
+                renderAdminMenuList();
+            } else if (password !== null) {
+                alert('❌ 비밀번호가 틀렸습니다!');
+            }
+        }
+
+        // Also keep double-click as hidden feature for convenience
+        document.getElementById('header').addEventListener('dblclick', function() {
+            const password = prompt('🔐 관리자 비밀번호를 입력하세요:');
+            if (password === 'compose2024') {
+                document.getElementById('adminModal').style.display = 'block';
+                renderAdminMenuList();
+            } else if (password !== null) {
+                alert('❌ 비밀번호가 틀렸습니다!');
+            }
+        });
+
+        // Close admin modal
+        document.getElementById('closeAdmin').addEventListener('click', function() {
+            document.getElementById('adminModal').style.display = 'none';
+        });
+
+        // Add new menu image
+        document.getElementById('addMenuImageBtn').addEventListener('click', function() {
+            const title = document.getElementById('newMenuTitle').value;
+            const imageFile = document.getElementById('newMenuImageFile').files[0];
+
+            if (!title || !imageFile) {
+                alert('제목과 이미지를 모두 입력해주세요!');
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                additionalMenus.push({
+                    title: title,
+                    image: e.target.result,
+                    date: new Date().toISOString()
+                });
+                
+                localStorage.setItem('additionalMenus', JSON.stringify(additionalMenus));
+                renderAdditionalMenus();
+                renderAdminMenuList();
+                
+                document.getElementById('newMenuTitle').value = '';
+                document.getElementById('newMenuImageFile').value = '';
+                
+                alert('메뉴판이 추가되었습니다! ✅');
+            };
+            reader.readAsDataURL(imageFile);
+        });
+
+        // Render additional menus
+        function renderAdditionalMenus() {
+            const grid = document.getElementById('additionalMenusGrid');
+            
+            if (additionalMenus.length === 0) {
+                document.getElementById('additionalMenusSection').style.display = 'none';
+                return;
+            }
+
+            document.getElementById('additionalMenusSection').style.display = 'block';
+            grid.innerHTML = '';
+
+            additionalMenus.forEach((menu, index) => {
+                const menuCard = document.createElement('div');
+                menuCard.className = 'menu-section';
+                menuCard.innerHTML = `
+                    <div class="p-4">
+                        <h4 class="font-bold text-lg mb-2">${menu.title}</h4>
+                        <img src="${menu.image}" alt="${menu.title}" class="w-full rounded-lg">
+                    </div>
+                `;
+                grid.appendChild(menuCard);
+            });
+        }
+
+        // Render admin menu list
+        function renderAdminMenuList() {
+            const adminList = document.getElementById('adminMenuImageList');
+            
+            if (additionalMenus.length === 0) {
+                adminList.innerHTML = '<p class="text-gray-500 text-center py-4">추가된 메뉴판이 없습니다</p>';
+                return;
+            }
+
+            adminList.innerHTML = '';
+
+            additionalMenus.forEach((menu, index) => {
+                const adminItem = document.createElement('div');
+                adminItem.className = 'flex justify-between items-center p-3 bg-gray-50 rounded-lg';
+                adminItem.innerHTML = `
+                    <div class="flex items-center space-x-3">
+                        <img src="${menu.image}" class="image-preview" />
+                        <div>
+                            <p class="font-bold">${menu.title}</p>
+                            <p class="text-sm text-gray-600">${new Date(menu.date).toLocaleDateString('ko-KR')}</p>
+                        </div>
+                    </div>
+                    <button onclick="deleteMenuImage(${index})" class="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600">삭제</button>
+                `;
+                adminList.appendChild(adminItem);
+            });
+        }
+
+        // Delete menu image
+        window.deleteMenuImage = function(index) {
+            if (confirm('정말 삭제하시겠습니까?')) {
+                additionalMenus.splice(index, 1);
+                localStorage.setItem('additionalMenus', JSON.stringify(additionalMenus));
+                renderAdditionalMenus();
+                renderAdminMenuList();
+                alert('메뉴판이 삭제되었습니다.');
+            }
+        };
+
+        // Generate QR Code
+        const currentUrl = window.location.href;
+        new QRCode(document.getElementById("qrcode"), {
+            text: currentUrl,
+            width: 200,
+            height: 200,
+            colorDark: "#000000",
+            colorLight: "#ffffff",
+            correctLevel: QRCode.CorrectLevel.H
+        });
+
+        // Initial render
+        renderAdditionalMenus();
+    </script>
+</body>
+</html>
